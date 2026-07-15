@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+export PYTHONPATH="${REPO_ROOT}/src:${REPO_ROOT}:${PYTHONPATH:-}"
+
 NPROC_PER_NODE="${1:?Usage: bash scripts/train_zero1.sh <nproc_per_node> [hydra_overrides...]}"
 shift
 
@@ -18,6 +22,7 @@ if ! is_integer "${NUM_MACHINES}" || ! is_integer "${MACHINE_RANK}"; then
   echo "Error: NUM_MACHINES (${NUM_MACHINES}) and MACHINE_RANK (${MACHINE_RANK}) must be integers." >&2
   exit 1
 fi
+TOTAL_PROCESSES=$((NUM_MACHINES * NPROC_PER_NODE))
 
 extract_task_basename() {
   local cfg="$1"
@@ -105,11 +110,16 @@ PY
   fi
 fi
 
-echo "[launch] nproc_per_node=${NPROC_PER_NODE} num_machines=${NUM_MACHINES} machine_rank=${MACHINE_RANK} run_id=${RUN_ID}"
+echo "[launch] nproc_per_node=${NPROC_PER_NODE} num_machines=${NUM_MACHINES} total_processes=${TOTAL_PROCESSES} machine_rank=${MACHINE_RANK} main_process=${MAIN_PROCESS_IP}:${MAIN_PROCESS_PORT} run_id=${RUN_ID}"
 
 accelerate launch \
   --config_file scripts/accelerate_configs/accelerate_zero1_ds.yaml \
-  --num_processes "${NPROC_PER_NODE}" \
+  --num_processes "${TOTAL_PROCESSES}" \
+  --num_machines "${NUM_MACHINES}" \
+  --machine_rank "${MACHINE_RANK}" \
+  --main_process_ip "${MAIN_PROCESS_IP}" \
+  --main_process_port "${MAIN_PROCESS_PORT}" \
+  --same_network \
   scripts/train.py \
   "output_dir=./runs/${TASK_BASENAME}/${RUN_ID}" \
   "wandb.name=${TASK_BASENAME}" \

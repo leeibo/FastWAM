@@ -1,0 +1,116 @@
+train:
+  _target_: fastwam.datasets.lerobot.robot_video_dataset.RobotVideoDataset
+  dataset_dirs:
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/beat_block_hammer_rotate_view
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/blocks_ranking_rgb_fan_double
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/blocks_ranking_rgb_rotate_view
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/blocks_ranking_size_fan_double
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/blocks_ranking_size_rotate_view
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/check_block_color
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/check_cola_color
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/check_cola_date
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/click_bell_rotate_view
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/count_color_kinds_press_button
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/count_random_object_press_button
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/count_target_press_button
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/match_backside_two_blocks
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/move_pillbottle_pad_rotate_view
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/move_stapler_pad_rotate_view
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/place_a2b_left_rotate_view
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/place_a2b_right_rotate_view
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/place_cans_plasticbox_rotate_view
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/place_container_plate_rotate_view
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/place_empty_cup_rotate_view
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/place_fan_rotate_view
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/place_mouse_pad_rotate_view
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/place_object_basket_fan_double
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/place_object_scale_rotate_view
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/place_object_stand_rotate_view
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/place_shoe_rotate_view
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/press_stapler_rotate_view
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/put_block_on_upper_easy
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/put_block_on_upper_hard
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/rank_backside_rgb_blocks
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/shake_bottle_horizontally_rotate_view
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/shake_bottle_rotate_view
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/stack_blocks_two_rotate_view
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/stamp_seal_rotate_view
+    - /data/lmz/code/starVLA-A/playground/dataset/RoboTwin_Astribot_lerobot/turn_switch_rotate_view
+  shape_meta:
+    images:
+      - key: camera_head
+        raw_shape: [3, 480, 640]
+        shape: [3, 240, 320]
+    action:
+      - key: default
+        raw_shape: 18
+        shape: 18
+    state:
+      - key: default
+        raw_shape: 18
+        shape: 18
+  num_frames: 33
+  global_sample_stride: 1
+  action_video_freq_ratio: 4
+  video_size: [384, 512]
+  camera_key: null
+  val_set_proportion: 0.01
+  is_training_set: true
+  pretrained_norm_stats: ./data/astribot_dataset_stats.json
+  skip_padding_as_possible: false
+  concat_multi_camera: horizontal
+  processor:
+    _target_: fastwam.datasets.lerobot.processors.fastwam_processor.FastWAMProcessor
+    shape_meta: ${data.train.shape_meta}
+    num_obs_steps: ${data.train.num_frames}
+    num_output_cameras: 1
+    action_output_dim: 18
+    proprio_output_dim: 18
+    action_state_transforms: null
+    use_stepwise_action_norm: false
+    norm_default_mode: z-score
+    norm_exception_mode: null
+    action_state_merger:
+      _target_: fastwam.datasets.lerobot.transforms.action_state_merger.ConcatLeftAlign
+    train_transforms:
+      - _target_: fastwam.datasets.lerobot.transforms.image.ToTensor
+      - _target_: torchvision.transforms.Resize
+        size: [240, 320]
+    val_transforms:
+      - _target_: fastwam.datasets.lerobot.transforms.image.ToTensor
+      - _target_: torchvision.transforms.Resize
+        size: [240, 320]
+  text_embedding_cache_dir: ./data/text_embeds_cache/astribot
+  context_len: 128
+
+val:
+  _target_: fastwam.datasets.lerobot.robot_video_dataset.RobotVideoDataset
+  dataset_dirs: ${data.train.dataset_dirs}
+  shape_meta: ${data.train.shape_meta}
+  num_frames: ${data.train.num_frames}
+  global_sample_stride: ${data.train.global_sample_stride}
+  action_video_freq_ratio: ${data.train.action_video_freq_ratio}
+  video_size: ${data.train.video_size}
+  camera_key: null
+  val_set_proportion: ${data.train.val_set_proportion}
+  is_training_set: false
+  pretrained_norm_stats: ./data/astribot_dataset_stats.json
+  skip_padding_as_possible: ${data.train.skip_padding_as_possible}
+  concat_multi_camera: ${data.train.concat_multi_camera}
+  processor:
+    _target_: fastwam.datasets.lerobot.processors.fastwam_processor.FastWAMProcessor
+    shape_meta: ${data.train.shape_meta}
+    num_obs_steps: ${data.train.num_frames}
+    num_output_cameras: ${data.train.processor.num_output_cameras}
+    action_output_dim: ${data.train.processor.action_output_dim}
+    proprio_output_dim: ${data.train.processor.proprio_output_dim}
+    action_state_transforms: null
+    use_stepwise_action_norm: ${data.train.processor.use_stepwise_action_norm}
+    norm_default_mode: ${data.train.processor.norm_default_mode}
+    norm_exception_mode: null
+    action_state_merger:
+      _target_: fastwam.datasets.lerobot.transforms.action_state_merger.ConcatLeftAlign
+    train_transforms: ${data.train.processor.train_transforms}
+    val_transforms: ${data.train.processor.val_transforms}
+  text_embedding_cache_dir: ${data.train.text_embedding_cache_dir}
+  context_len: ${data.train.context_len}

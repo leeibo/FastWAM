@@ -2,6 +2,7 @@ compute_environment: LOCAL_MACHINE
 debug: false
 distributed_type: DEEPSPEED
 deepspeed_config:
+  deepspeed_multinode_launcher: standard
   gradient_accumulation_steps: 1
   offload_optimizer_device: none
   offload_param_device: none

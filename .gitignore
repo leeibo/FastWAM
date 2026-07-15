@@ -9,6 +9,7 @@ runs
 runs/
 evaluate_results/
 .deepspeed*
+train_files/**/logs/
 
 
 # ai coding
