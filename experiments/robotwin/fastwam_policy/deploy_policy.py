@@ -135,6 +135,22 @@ def _resize_rgb(image: np.ndarray, size_wh: tuple[int, int]) -> np.ndarray:
     return np.asarray(resized, dtype=np.uint8)
 
 
+def _center_crop_resize_rgb(image: np.ndarray, size_wh: tuple[int, int]) -> np.ndarray:
+    target_w, target_h = size_wh
+    pil_image = Image.fromarray(image.astype(np.uint8), mode="RGB")
+    src_w, src_h = pil_image.size
+    scale = max(target_w / src_w, target_h / src_h)
+    resized = pil_image.resize(
+        (round(src_w * scale), round(src_h * scale)),
+        resample=Image.BILINEAR,
+    )
+    resized_w, resized_h = resized.size
+    left = max((resized_w - target_w) // 2, 0)
+    top = max((resized_h - target_h) // 2, 0)
+    cropped = resized.crop((left, top, left + target_w, top + target_h))
+    return np.asarray(cropped, dtype=np.uint8)
+
+
 class WorldActionRobotWinPolicy:
     def __init__(
         self,
@@ -155,6 +171,8 @@ class WorldActionRobotWinPolicy:
         tiled: bool,
         timing_enabled: bool,
         num_video_frames: int,
+        video_size: tuple[int, int],
+        concat_multi_camera: str,
     ) -> None:
         model_cfg_copy = OmegaConf.create(OmegaConf.to_container(model_cfg, resolve=True))
         model_cfg_copy.load_text_encoder = True
@@ -178,6 +196,8 @@ class WorldActionRobotWinPolicy:
         self.tiled = bool(tiled)
         self.timing_enabled = bool(timing_enabled)
         self._num_video_frames = int(num_video_frames)
+        self.video_size = tuple(map(int, video_size))
+        self.concat_multi_camera = str(concat_multi_camera)
 
         self.pending_actions: deque[np.ndarray] = deque()
         self.episode_count = 0
@@ -185,11 +205,15 @@ class WorldActionRobotWinPolicy:
         self._timing_rollout = {"infer_s": 0.0, "sim_s": 0.0}
 
         logger.info(
-            "Initialized WorldActionRobotWinPolicy | ckpt=%s | stats=%s | horizon=%d | replan=%d",
+            "Initialized WorldActionRobotWinPolicy | ckpt=%s | stats=%s | horizon=%d | "
+            "replan=%d | cameras=%d | video_size=%s | concat=%s",
             checkpoint_path,
             dataset_stats_path,
             self.action_horizon,
             self.replan_steps,
+            int(self.processor.num_output_cameras),
+            self.video_size,
+            self.concat_multi_camera,
         )
 
     def _normalize_state(self, state: np.ndarray) -> torch.Tensor:
@@ -220,13 +244,35 @@ class WorldActionRobotWinPolicy:
 
     def _build_robotwin_image_tensor(self, observation: Dict[str, Any]) -> torch.Tensor:
         obs_data = observation["observation"]
-        head = _resize_rgb(obs_data["head_camera"]["rgb"], (320, 256))
-        left = _resize_rgb(obs_data["left_camera"]["rgb"], (160, 128))
-        right = _resize_rgb(obs_data["right_camera"]["rgb"], (160, 128))
-        bottom = np.concatenate([left, right], axis=1)
-        image = np.concatenate([head, bottom], axis=0)  # [384, 320, 3]
+        target_h, target_w = self.video_size
+        num_cameras = int(self.processor.num_output_cameras)
 
-        image_tensor = torch.from_numpy(image).permute(2, 0, 1).unsqueeze(0).to(
+        if num_cameras == 1:
+            # Astribot was trained from the head camera only. Match the
+            # aspect-preserving resize + center crop used by RobotVideoDataset.
+            image = _center_crop_resize_rgb(
+                obs_data["head_camera"]["rgb"],
+                (target_w, target_h),
+            )
+        elif num_cameras == 3 and self.concat_multi_camera == "robotwin":
+            head = _resize_rgb(obs_data["head_camera"]["rgb"], (320, 256))
+            left = _resize_rgb(obs_data["left_camera"]["rgb"], (160, 128))
+            right = _resize_rgb(obs_data["right_camera"]["rgb"], (160, 128))
+            bottom = np.concatenate([left, right], axis=1)
+            image = np.concatenate([head, bottom], axis=0)  # [384, 320, 3]
+            if image.shape[:2] != (target_h, target_w):
+                raise ValueError(
+                    "RobotWin 3-camera layout does not match configured video size: "
+                    f"layout={image.shape[:2]}, video_size={(target_h, target_w)}"
+                )
+        else:
+            raise ValueError(
+                "Unsupported RoboTwin camera configuration: "
+                f"num_output_cameras={num_cameras}, "
+                f"concat_multi_camera={self.concat_multi_camera!r}"
+            )
+
+        image_tensor = torch.from_numpy(np.array(image, copy=True)).permute(2, 0, 1).unsqueeze(0).to(
             device=self.model.device,
             dtype=self.model.torch_dtype,
         )
@@ -387,6 +433,8 @@ def get_model(usr_args: Dict[str, Any]):
         tiled=tiled,
         timing_enabled=timing_enabled,
         num_video_frames=(int(cfg.data.train.num_frames) - 1) // int(cfg.data.train.action_video_freq_ratio) + 1,
+        video_size=(int(cfg.data.train.video_size[0]), int(cfg.data.train.video_size[1])),
+        concat_multi_camera=str(cfg.data.train.get("concat_multi_camera", "horizontal")),
     )
     return policy
 
